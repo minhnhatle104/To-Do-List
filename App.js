@@ -1,51 +1,68 @@
 const express = require('express');
 const bodyParser = require("body-parser");
-const date = require(__dirname+"/Date.js")
+const mongoose = require("mongoose");
 
 const app = express();
 
-app.set('view engine','ejs');
+app.set('view engine', 'ejs');
 
 app.use(express.static(__dirname + '/public'));
 
-app.use(bodyParser.urlencoded({extended:true}));
+app.use(bodyParser.urlencoded({ extended: true }));
 
-let items = ["Movies","Fish","Comic books"];
-let workItems = [];
+mongoose.connect(
+    'mongodb+srv://lenhatminh:vNXlGIjqRWfAxZtc@cluster0.buembsu.mongodb.net/todolistDB?retryWrites=true&w=majority'
+).then(() => {
+    console.log("Connected to the database.");
+}).catch(() => {
+    console.log("Connection Failed!");
+});
 
-app.get('/',(req,res)=>{
-    let currentDay = date.getDate();
+const itemsSchema = {
+    name: String
+}
 
-    res.render("index",{
-        listTitle:currentDay,
-        newListItems: items
-    });
+const Item = mongoose.model("Item", itemsSchema);
+
+app.get('/', (req, res) => {
+    Item.find({}, (err, items) => {
+        if (err) {
+            console.log("Can't get data of database");
+        }
+        else {
+            res.render("index", {
+                listTitle: "Today",
+                newListItems: items
+            });
+        }
+    })
 })
 
-app.get('/work',(req,res)=>{
-    res.render("index",{
-        listTitle:"Work List",
-        newListItems: workItems
-    });
-})
-
-app.get('/about',(req,res)=>{
+app.get('/about', (req, res) => {
     res.render("about");
 })
 
-app.post('/',(req,res)=>{
-    let item = req.body.newItem;
-    console.log(req.body)
-    if(req.body.button === "Work"){
-        workItems.push(item);
-        res.redirect("/work");
-    }
-    else{
-        items.push(item);
-        res.redirect("/");
-    }
+app.post('/', (req, res) => {
+    const itemName = req.body.newItem;
+    const listName = req.body.list;
+
+    const item = new Item({ name: itemName });
+    item.save();
+    res.redirect("/");
 })
 
-app.listen(3000,()=>{
+
+app.post('/delete', (req, res) => {
+    const checkedItemId = req.body.checkbox;
+
+    Item.findByIdAndRemove(checkedItemId, (err) => {
+        if (!err) {
+            console.log("Successfully delete the item");
+            res.redirect("/")
+        }
+    })
+})
+
+app.listen(3000, () => {
     console.log("Server started listening at port 3000");
 })
